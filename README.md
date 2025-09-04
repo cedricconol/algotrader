@@ -1,0 +1,2 @@
+# algotrader
+Algorithmic trading framework
