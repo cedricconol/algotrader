@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "algotrader"
+version = "0.1.0"
+description = "Algorithmic trading framework"
+authors = ["conolcedric@gmail.com"]
+license = "MIT"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+metatrader5 = "^5.0.5260"
+
+[build-system]
+requires = ["poetry-core"]
+
