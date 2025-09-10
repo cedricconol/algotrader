@@ -2,7 +2,7 @@
 import psycopg2
 import MetaTrader5 as mt5
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # String → MT5 constant
 TIMEFRAMES = {
@@ -69,7 +69,7 @@ def get_latest_timestamp(conn, schema_name: str, table_name: str):
     return result[0] if result and result[0] else None
 
 
-def fetch_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_to: str = None):
+def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_to: str = None):
     """
     Fetch data from MT5 and UPSERT into Postgres.
 
@@ -95,6 +95,14 @@ def fetch_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_t
     utc_from = datetime.strptime(date_from, "%Y-%m-%d") if date_from else None
     utc_to = datetime.strptime(date_to, "%Y-%m-%d") if date_to else None
 
+    # Convert to UTC
+    utc_from = utc_from.replace(tzinfo=timezone(timedelta(hours=3))) if date_from else None
+    utc_to = utc_to.replace(tzinfo=timezone(timedelta(hours=3))) if date_to else None
+
+    # Convert to UTC
+    utc_from = utc_from.astimezone(timezone.utc) if date_from else None
+    utc_to = utc_to.astimezone(timezone.utc) if date_to else None
+
     # Case 1: Explicit date range
     if utc_from and utc_to:
         rates = mt5.copy_rates_range(symbol, tf_const, utc_from, utc_to)
@@ -115,7 +123,8 @@ def fetch_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_t
         return pd.DataFrame()
 
     df = pd.DataFrame(rates)
-    df["time"] = pd.to_datetime(df["time"], unit="s")
+    df["time"] = pd.to_datetime(df["time"], unit="s", utc=True)
+    df["time"] = df["time"].dt.tz_convert("Etc/GMT-3")
 
     # UPSERT into Postgres
     with conn.cursor() as cur:
@@ -140,4 +149,4 @@ def fetch_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_t
     conn.commit()
     conn.close()
 
-    return df
+    return None
