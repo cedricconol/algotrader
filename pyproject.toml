@@ -9,11 +9,14 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-metatrader5 = "^5.0.5260"
+metatrader5 = { version = "^5.0.5260", markers = "sys_platform == 'win32'" }
 jupyter = "^1.1.1"
 lab = "^8.4"
 pandas = "^2.3.2"
-psycopg2 = "^2.9.10"
+psycopg2-binary = { version = "^2.9.10", markers = "sys_platform == 'darwin'" }
+psycopg2 = { version = "^2.9.10", markers = "sys_platform == 'linux' or sys_platform == 'win32'" }
+dukascopy-python = "^4.0.1"
+pyarrow = "^21.0.0"
 
 [build-system]
 requires = ["poetry-core"]
