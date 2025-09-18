@@ -22,3 +22,33 @@ download_dukascopy(
     end,
 )
 ```
+
+# run backtest
+
+```
+import pandas as pd
+import numpy as np
+from backtesting.test import GOOG
+from trade.backtest import StrategyBase, run_backtest
+
+# Example SMA strategy
+class SMA_Cross(StrategyBase):
+    def __init__(self, n_fast=10, n_slow=20):
+        self.n_fast = n_fast
+        self.n_slow = n_slow
+
+    def generate_signal(self, df: pd.DataFrame):
+        df['sma_fast'] = df['Close'].rolling(self.n_fast).mean()
+        df['sma_slow'] = df['Close'].rolling(self.n_slow).mean()
+
+        if df['sma_fast'].iloc[-1] > df['sma_slow'].iloc[-1]:
+            return "buy"
+        elif df['sma_fast'].iloc[-1] < df['sma_slow'].iloc[-1]:
+            return "sell"
+        return None
+
+# Backtest
+stats, bt = run_backtest(GOOG, SMA_Cross, cash=100000000000)
+print(stats)
+bt.plot()
+```
