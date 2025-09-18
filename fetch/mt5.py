@@ -2,7 +2,9 @@
 import psycopg2
 import MetaTrader5 as mt5
 import pandas as pd
+
 from datetime import datetime, timedelta, timezone
+import utils
 
 # String → MT5 constant
 TIMEFRAMES = {
@@ -37,24 +39,21 @@ def get_conn():
 
 def ensure_schema_and_table(conn, symbol: str, timeframe: str):
     """Ensure schema and table exist for this symbol/timeframe."""
-    if symbol.lower() == "gold#":
-        schema_name = "gold"
-    else:
-        schema_name = symbol.lower()
-    table_name = f"ohlc_{timeframe}"
+    schema_name = utils.strip_string_list_comp(symbol).lower()
+    table_name = f"{timeframe.lower()}"
 
     with conn.cursor() as cur:
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {schema_name}")
         cur.execute(f"""
             CREATE TABLE IF NOT EXISTS {schema_name}.{table_name} (
-                time TIMESTAMPTZ PRIMARY KEY,
-                open DOUBLE PRECISION,
-                high DOUBLE PRECISION,
-                low DOUBLE PRECISION,
-                close DOUBLE PRECISION,
-                tick_volume BIGINT,
+                timestamp TIMESTAMPTZ PRIMARY KEY,
+                Open DOUBLE PRECISION,
+                High DOUBLE PRECISION,
+                Low DOUBLE PRECISION,
+                Close DOUBLE PRECISION,
+                Volume BIGINT,
                 spread INTEGER,
-                real_volume BIGINT
+                Volume_Real BIGINT
             )
         """)
     conn.commit()
@@ -69,7 +68,7 @@ def get_latest_timestamp(conn, schema_name: str, table_name: str):
     return result[0] if result and result[0] else None
 
 
-def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_to: str = None):
+def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, date_to: str = None, save_mode: str = 'parquet') -> pd.DataFrame:
     """
     Fetch data from MT5 and UPSERT into Postgres.
 
@@ -123,30 +122,35 @@ def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, dat
         return pd.DataFrame()
 
     df = pd.DataFrame(rates)
-    df["time"] = pd.to_datetime(df["time"], unit="s", utc=True)
-    df["time"] = df["time"].dt.tz_convert("Etc/GMT-3")
+    df["timestamp"] = pd.to_datetime(df["time"], unit="s", utc=True)
+    df["timestamp"] = df["timestamp"].dt.tz_convert("Etc/GMT-3")
+    df.set_index("timestamp", inplace=True)
 
-    # UPSERT into Postgres
-    with conn.cursor() as cur:
-        for _, row in df.iterrows():
-            cur.execute(f"""
-                INSERT INTO {schema_name}.{table_name}
-                    (time, open, high, low, close, tick_volume, spread, real_volume)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (time) DO UPDATE SET
-                    open = EXCLUDED.open,
-                    high = EXCLUDED.high,
-                    low = EXCLUDED.low,
-                    close = EXCLUDED.close,
-                    tick_volume = EXCLUDED.tick_volume,
-                    spread = EXCLUDED.spread,
-                    real_volume = EXCLUDED.real_volume
-            """, (
-                row["time"].to_pydatetime(),
-                row["open"], row["high"], row["low"], row["close"],
-                int(row["tick_volume"]), int(row["spread"]), int(row["real_volume"])
-            ))
-    conn.commit()
-    conn.close()
+    if save_mode == 'parquet':
+        df.to_parquet(f"{schema_name}_{table_name}", engine="pyarrow")
+        conn.close()
+    elif save_mode == 'postgres':
+        # UPSERT into Postgres
+        with conn.cursor() as cur:
+            for _, row in df.iterrows():
+                cur.execute(f"""
+                    INSERT INTO {schema_name}.{table_name}
+                        (timestamp, Open, High, Low, Close, Volume, spread, Volume_Real)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (time) DO UPDATE SET
+                        Open = EXCLUDED.Open,
+                        High = EXCLUDED.High,
+                        Low = EXCLUDED.Low,
+                        Close = EXCLUDED.Close,
+                        Volume = EXCLUDED.Volume,
+                        spread = EXCLUDED.spread,
+                        Volume_Real = EXCLUDED.Volume_Real
+                """, (
+                    row["timestamp"].to_pydatetime(),
+                    row["open"], row["high"], row["low"], row["close"],
+                    int(row["tick_volume"]), int(row["spread"]), int(row["real_volume"])
+                ))
+        conn.commit()
+        conn.close()
 
     return None

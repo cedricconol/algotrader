@@ -7,9 +7,10 @@ from psycopg2.extras import execute_values
 from datetime import datetime, timezone, timedelta
 
 from config import get_conn
+import utils
 
 
-def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: str, date_to: str) -> pd.DataFrame:
+def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: str, date_to: str, save_mode: str = 'parquet') -> pd.DataFrame:
     """
     Download OHLCV data from Dukascopy and adjust timezone to UTC+3.
     
@@ -42,11 +43,11 @@ def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: 
 
     # Normalize columns
     df = df.rename(columns={
-        "open": "open",
-        "high": "high",
-        "low": "low",
-        "close": "close",
-        "volume": "volume"
+        "open": "Open",
+        "high": "High",
+        "low": "Low",
+        "close": "Close",
+        "volume": "Volume"
     })
 
     # Reset index -> expose time column
@@ -55,13 +56,17 @@ def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: 
 
     # Convert to timezone-aware UTC, then shift to UTC+3
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True) + pd.Timedelta(hours=3)
+    df.set_index("timestamp", inplace=True)
 
-    symbol_stripped = strip_string_list_comp(symbol)
+    symbol_stripped = utils.strip_string_list_comp(symbol)
 
     table_name = f"{symbol_stripped.lower()}_{timeframe.lower()}"
 
-    df.to_parquet(table_name, engine="pyarrow", index=False)
-
+    if save_mode == 'parquet':
+        df.to_parquet(table_name, engine="pyarrow")
+    elif save_mode == 'postgres':
+        save_to_postgres(df, table_name)
+    
     return None
 
 
@@ -75,12 +80,12 @@ def save_to_postgres(df: pd.DataFrame, table_name: str):
     # Create table if it doesn’t exist
     create_table_query = f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
-        time TIMESTAMP PRIMARY KEY,
-        open NUMERIC,
-        high NUMERIC,
-        low NUMERIC,
-        close NUMERIC,
-        volume BIGINT
+        timestamp TIMESTAMP PRIMARY KEY,
+        Open NUMERIC,
+        High NUMERIC,
+        Low NUMERIC,
+        Close NUMERIC,
+        Volume BIGINT
     );
     """
     cur.execute(create_table_query)
@@ -91,14 +96,14 @@ def save_to_postgres(df: pd.DataFrame, table_name: str):
 
     # UPSERT query
     insert_query = f"""
-    INSERT INTO {table_name} (time, open, high, low, close, volume)
+    INSERT INTO {table_name} (timestamp, Open, High, Low, Close, Volume)
     VALUES %s
     ON CONFLICT (time) DO UPDATE SET
-        open = EXCLUDED.open,
-        high = EXCLUDED.high,
-        low = EXCLUDED.low,
-        close = EXCLUDED.close,
-        volume = EXCLUDED.volume;
+        Open = EXCLUDED.Open,
+        High = EXCLUDED.High,
+        Low = EXCLUDED.Low,
+        Close = EXCLUDED.Close,
+        Volume = EXCLUDED.Volume;
     """
 
     execute_values(cur, insert_query, values)
@@ -107,7 +112,3 @@ def save_to_postgres(df: pd.DataFrame, table_name: str):
     cur.close()
     conn.close()
     print(f"✅ Upserted {len(values)} rows into {table_name}")
-
-def strip_string_list_comp(s):
-  """Strips a string to keep only alphanumeric characters using a list comprehension."""
-  return "".join(char for char in s if char.isalnum())
