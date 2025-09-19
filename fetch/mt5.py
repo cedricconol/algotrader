@@ -124,9 +124,9 @@ def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, dat
     df = pd.DataFrame(rates)
     df["timestamp"] = pd.to_datetime(df["time"], unit="s", utc=True)
     df["timestamp"] = df["timestamp"].dt.tz_convert("Etc/GMT-3")
-    df.set_index("timestamp", inplace=True)
 
     if save_mode == 'parquet':
+        df.set_index("timestamp", inplace=True)
         df.to_parquet(f"{schema_name}_{table_name}", engine="pyarrow")
         conn.close()
     elif save_mode == 'postgres':
@@ -137,7 +137,7 @@ def download_mt5(symbol: str, timeframe: str, n=1000, date_from: str = None, dat
                     INSERT INTO {schema_name}.{table_name}
                         (timestamp, Open, High, Low, Close, Volume, spread, Volume_Real)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (time) DO UPDATE SET
+                    ON CONFLICT (timestamp) DO UPDATE SET
                         Open = EXCLUDED.Open,
                         High = EXCLUDED.High,
                         Low = EXCLUDED.Low,
