@@ -62,13 +62,21 @@ def run_backtest(df: pd.DataFrame, strategy_class, cash=10000, commission=0.002)
 
             data.index.name = "timestamp"
 
-            signal = strategy_class().generate_signal(data)
+            signal = strategy_class().generate_signal(data, self.position)
 
-            if signal == "buy" and not self.position:
-                self.buy()
-            elif signal == "sell" and self.position:
+            direction = signal['direction']
+            size = signal['size']
+            limit = signal['limit']
+            stop = signal['stop']
+            sl = signal['sl']
+            tp = signal['tp']
+
+            if direction == 'buy':
+                self.buy(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
+            elif direction == 'sell':
+               self.sell(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
+            elif direction == 'close':
                 self.position.close()
-
 
     bt = Backtest(df, StrategyWrapper, cash=cash, commission=commission)
     return bt.run(), bt
