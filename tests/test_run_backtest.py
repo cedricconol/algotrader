@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 from backtesting.test import GOOG
-from trade.backtest import StrategyBase, run_backtest
+from algotrader.trade.backtest import StrategyBase, run_backtest
 
 class SMA_Cross(StrategyBase):
     def __init__(self, n_fast=10, n_slow=20):

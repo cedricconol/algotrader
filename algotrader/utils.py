@@ -4,7 +4,7 @@ def strip_string_list_comp(s):
   """Strips a string to keep only alphanumeric characters using a list comprehension."""
   return "".join(char for char in s if char.isalnum())
 
-def prepare_df(df, purpose='backtest', timestamp_col='timestamp'):
+def prepare_df(df, purpose='backtest'):
     """
     Prepares a DataFrame for backtesting.py with proper OHLCV columns and optional timestamp index.
     """
@@ -20,21 +20,20 @@ def prepare_df(df, purpose='backtest', timestamp_col='timestamp'):
             "Volume": df['volume'].values,
         })
 
-        index_name = "timestamp"
-
-        if timestamp_col and timestamp_col in df:
-            data.index = pd.to_datetime(df[timestamp_col].values)
-            data.index.name = index_name
-        elif df.index.name == timestamp_col:
+        if df.index.name == 'time' or df.index.name == 'timestamp':
             data.index = df.index
-            data.index.name = timestamp_col
+            data.index.name = "timestamp"
+        else:
+            time_col = [c for c in df.columns if any(x in c.lower() for x in ["time", "timestamp"])][0]
+            data.index = pd.to_datetime(df[time_col].values)
+            data.index.name = "timestamp"
 
     elif purpose == 'chart':
-        if timestamp_col and timestamp_col in df:
-            time_col = timestamp_col
-        elif df.index.name == timestamp_col:
+        if df.index.name == 'time' or df.index.name == 'timestamp':
+            time_col = df.index.name
             df = df.reset_index()
-            time_col = timestamp_col
+        else:
+            time_col = [c for c in df.columns if any(x in c.lower() for x in ["time", "timestamp"])][0]
 
         data = pd.DataFrame({
             "time": df[time_col].values,
