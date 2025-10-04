@@ -52,3 +52,8 @@ stats, bt = run_backtest(GOOG, SMA_Cross, cash=100000000000)
 print(stats)
 bt.plot()
 ```
+
+# run tests
+```
+python -m unittest discover -s tests
+```

@@ -4,7 +4,7 @@ import MetaTrader5 as mt5
 import pandas as pd
 
 from datetime import datetime, timedelta, timezone
-import utils
+import algotrader.utils as utils
 
 # String → MT5 constant
 TIMEFRAMES = {

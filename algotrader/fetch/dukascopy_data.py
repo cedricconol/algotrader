@@ -7,7 +7,7 @@ from psycopg2.extras import execute_values
 from datetime import datetime, timezone, timedelta
 
 from config import get_conn
-import utils
+import algotrader.utils as utils
 
 
 def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: str, date_to: str, save_mode: str = 'parquet') -> pd.DataFrame:

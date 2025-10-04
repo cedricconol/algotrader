@@ -14,32 +14,6 @@ class StrategyBase:
 # ------------------------------
 # Backtest Engine
 # ------------------------------
-def prepare_backtest_df(df,
-                        open_col="Open", high_col="High", low_col="Low",
-                        close_col="Close", volume_col="Volume", timestamp_col=None):
-    """
-    Prepares a DataFrame for backtesting.py with proper OHLCV columns and optional timestamp index.
-    """
-
-    data = pd.DataFrame({
-        "Open": df[open_col].values,
-        "High": df[high_col].values,
-        "Low": df[low_col].values,
-        "Close": df[close_col].values,
-        "Volume": df[volume_col].values,
-    })
-
-    # ✅ Timestamp handling
-    if timestamp_col and timestamp_col in df:
-        data.index = pd.to_datetime(df[timestamp_col].values)
-        data.index.name = "timestamp"
-    elif not isinstance(df.index, pd.RangeIndex):
-        # use existing index if it's not the default RangeIndex
-        data.index = df.index
-        data.index.name = "timestamp"
-    # else: leave as plain integer index
-
-    return data
 
 def run_backtest(df: pd.DataFrame, strategy_class, cash=10000, commission=0.002):
     """
