@@ -10,7 +10,7 @@ from config import get_conn
 import algotrader.utils as utils
 
 
-def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: str, date_to: str, save_mode: str = 'parquet') -> pd.DataFrame:
+def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: str, date_to: str, table_name: str = None, save_mode: str = 'parquet') -> pd.DataFrame:
     """
     Download OHLCV data from Dukascopy and adjust timezone to UTC+3.
     
@@ -60,14 +60,19 @@ def download_dukascopy(symbol: str, timeframe: str, offer_side: str, date_from: 
 
     symbol_stripped = utils.strip_string_list_comp(symbol)
 
-    table_name = f"{symbol_stripped.lower()}_{timeframe.lower()}"
+    if table_name is None:
+        table_name = f"{symbol_stripped.lower()}_{timeframe.lower()}"
 
     if save_mode == 'parquet':
         df.to_parquet(table_name, engine="pyarrow")
+        return None
     elif save_mode == 'postgres':
         save_to_postgres(df, table_name)
-    
-    return None
+        return None
+    elif save_mode == 'dataframe':
+        return df
+    else:
+        return None
 
 
 def save_to_postgres(df: pd.DataFrame, table_name: str):
