@@ -1,6 +1,11 @@
 # algotrader
 Algorithmic trading framework
 
+# install
+```
+poetry add git+https://github.com/cedricconol/algotrader.git
+```
+
 # download dukascopy
 ```
 import sys
