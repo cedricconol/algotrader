@@ -7,7 +7,7 @@ from backtesting import Backtest, Strategy
 # ------------------------------
 class StrategyBase:
     """All strategies must implement this."""
-    def generate_signal(self, df: pd.DataFrame):
+    def generate_signal(self, df: pd.DataFrame, position: dict) -> dict:
         raise NotImplementedError("You must implement generate_signal()")
 
 
@@ -15,14 +15,14 @@ class StrategyBase:
 # Backtest Engine
 # ------------------------------
 
-def run_backtest(df: pd.DataFrame, strategy_class, cash=10000, commission=0.002):
+def run_backtest(df: pd.DataFrame, generate_signal, **kwargs):
     """
     Run a backtest with backtesting.py given OHLC DataFrame and strategy class.
     """
     # Create a wrapper Strategy class for backtesting.py
     class StrategyWrapper(Strategy):
         def init(self):
-            pass
+            self.custom_data = {}
 
         def next(self):
             # Build a DataFrame from self.data (OHLCV arrays up to current step)
@@ -36,22 +36,34 @@ def run_backtest(df: pd.DataFrame, strategy_class, cash=10000, commission=0.002)
 
             data.index.name = "timestamp"
 
-            signal = strategy_class().generate_signal(data, self.position)
+            if self.position:
+                position_dict = {
+                    'is_long': self.position.is_long,
+                    'is_short': self.position.is_short,
+                    'pl': self.position.pl,
+                }
+            else:
+                position_dict = None
 
-            direction = signal['direction']
-            size = signal['size']
-            limit = signal['limit']
-            stop = signal['stop']
-            sl = signal['sl']
-            tp = signal['tp']
+            signal = generate_signal(data, position=position_dict, custom_data=self.custom_data)
 
-            if direction == 'buy':
-                self.buy(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
-            elif direction == 'sell':
-               self.sell(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
-            elif direction == 'close':
-                self.position.close()
+            if signal:
+                direction = signal['direction']
+                size = signal['size']
+                limit = signal['limit']
+                stop = signal['stop']
+                sl = signal['sl']
+                tp = signal['tp']
+                if 'custom_data' in signal:
+                    self.custom_data = signal['custom_data']
 
-    bt = Backtest(df, StrategyWrapper, cash=cash, commission=commission)
+                if direction == 'buy':
+                    self.buy(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
+                elif direction == 'sell':
+                    self.sell(size=size, limit=limit, stop=stop, sl=sl, tp=tp)
+                elif direction == 'close':
+                    self.position.close()
+
+    bt = Backtest(df, StrategyWrapper, **kwargs)
     return bt.run(), bt
 

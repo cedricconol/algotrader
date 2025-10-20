@@ -26,7 +26,6 @@ scikit-learn = "^1.7.2"
 bokeh = "^3.8.0"
 bokeh-sampledata = "^2025.0"
 seaborn = "^0.13.2"
-hdbscan = "^0.8.40"
 lightweight-charts = "^2.1"
 investpy = "^1.0.8"
 
